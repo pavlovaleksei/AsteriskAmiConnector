@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2020. Alfatell
+ * Developer Pavlov Aleksey alekseypavlov1998@gmail.com
+ */
+
 package ami.connector.events;
 
 import org.asteriskjava.manager.event.ManagerEvent;
@@ -5,6 +10,7 @@ import org.asteriskjava.manager.event.ManagerEvent;
 /**
  * @Author Pavlov Aleksey
  * @Date 22.01.2020
+ * Override event
  */
 public class HangupEvent extends ManagerEvent {
     private static final long serialVersionUID = 2L;

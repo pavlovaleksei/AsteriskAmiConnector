@@ -1,19 +1,17 @@
 /*
- * Copyright (c) 2020. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
- * Morbi non lorem porttitor neque feugiat blandit. Ut vitae ipsum eget quam lacinia accumsan.
- * Etiam sed turpis ac ipsum condimentum fringilla. Maecenas magna.
- * Proin dapibus sapien vel ante. Aliquam erat volutpat. Pellentesque sagittis ligula eget metus.
- * Vestibulum commodo. Ut rhoncus gravida arcu.
+ * Copyright (c) 2020. Alfatell
+ * Developer Pavlov Aleksey alekseypavlov1998@gmail.com
  */
 
 package ami.connector.events;
 
 import org.asteriskjava.manager.event.ManagerEvent;
 
+/**
+ * Override event
+ */
 public class NewExtenEvent extends ManagerEvent {
-
     private static final long serialVersionUID = 2L;
-
     private String Event;
     private String Privilege;
     private String Channel;

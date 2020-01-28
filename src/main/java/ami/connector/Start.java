@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2020. Alfatell
+ * Developer Pavlov Aleksey alekseypavlov1998@gmail.com
+ */
+
 package ami.connector;
 
 import ami.connector.events.DialStateEvent;
@@ -5,6 +10,7 @@ import ami.connector.events.HangupEvent;
 import ami.connector.events.NewExtenEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import org.apache.log4j.Logger;
 import org.asteriskjava.manager.*;
 import org.asteriskjava.manager.action.StatusAction;
 import org.asteriskjava.manager.event.*;
@@ -24,12 +30,12 @@ public class Start implements ManagerEventListener {
     private static String ccHost;
     private static DataTransfer dt;
 
-
     // PARAMS
     // 1 - asterisk host
     // 2 - asterisk user
     // 3 - asterisk password
     // 4 - ContectCenter Alfatell host (http://hostname:port)
+    // Example - 192.168.0.105 cc-manager ef18d7cef8234542a7a9bae2da8495b4 http://localhost:8082/server/ami
     //
     public static void main(String[] args) throws Exception {
         if (args.length < 4) {
@@ -39,27 +45,25 @@ public class Start implements ManagerEventListener {
         asteriskUsername = args[1];
         asteriskPassword = args[2];
         ccHost = args[3];
-        System.out.println(
+        Logger.getRootLogger().info("Run program with params: \n" +
                         "asteriskHost: " + asteriskHost + "\n" +
                         "asteriskUsername: " + asteriskUsername + "\n" +
                         "asteriskPassword: " + asteriskPassword + "\n" +
                         "ccHost: " + ccHost + "\n"
         );
 
-
-
         Start start = new Start();
         dt = new DataTransfer();
+        // Start listening events all time (i don`t know why start without while(true))
         while (true) {
             start.readAsteriskAmiMessages();
-            System.out.println("reconnect to ami after timeout");
+            Logger.getRootLogger().info("reconnect to ami after timeout");
         }
     }
 
-    private Boolean validateProgramArguments(String[] args) {
-        return args.length == 3;
-    }
-
+    /**
+     * Run program
+     */
     private Start() {
 //        ManagerConnectionFactory factory = new ManagerConnectionFactory("192.168.0.105", "cc-manager", "ef18d7cef8234542a7a9bae2da8495b4");
         ManagerConnectionFactory factory = new ManagerConnectionFactory(asteriskHost, asteriskUsername, asteriskPassword);
@@ -74,26 +78,33 @@ public class Start implements ManagerEventListener {
      * @throws InterruptedException
      */
     private void readAsteriskAmiMessages() throws IOException, AuthenticationFailedException, TimeoutException, InterruptedException {
+        // Register custom events models
         managerConnection.registerUserEventClass(DialStateEvent.class);
         managerConnection.deregisterEventClass(org.asteriskjava.manager.event.HangupEvent.class);
         managerConnection.registerUserEventClass(HangupEvent.class);
         managerConnection.deregisterEventClass(org.asteriskjava.manager.event.NewExtenEvent.class);
         managerConnection.registerUserEventClass(ami.connector.events.NewExtenEvent.class);
         managerConnection.addEventListener(this);
+        // Login in AsteriskAMI
         managerConnection.login();
+        // Start listening AMI with all events
         managerConnection.sendAction(new StatusAction());
-
+        // Sleep for listening max time (max Long value)
         Thread.sleep(0x7fffffffffffffffL);
+        // After sleep logout from AMI interface
         managerConnection.logoff();
     }
 
-
+    /**
+     * Convert object to json with Jackson library
+     * @param o Object to convert
+     * @return JSON String
+     * @throws JsonProcessingException
+     */
     private String objectToJson(Object o) throws JsonProcessingException {
         ObjectMapper om = new ObjectMapper();
         om.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        String json = om.writeValueAsString(o);
-        System.out.println("JSON: " + json);
-        return json;
+        return om.writeValueAsString(o);
     }
 
     /**
@@ -105,7 +116,9 @@ public class Start implements ManagerEventListener {
         // Входящие "ЗВОНОК"
         if(event.getClass().equals(AgentCalledEvent.class)){
             try {
-                dt.sendHttpPost(ccHost, "in-call-ringing", objectToJson(event));
+                String json = objectToJson(event);
+                Logger.getRootLogger().info("IN RINGING with data: [" + json + "]");
+                dt.sendHttpPost(ccHost, "in-call-ringing", json);
             } catch (JsonProcessingException e) {
                 e.printStackTrace();
             }
@@ -114,7 +127,9 @@ public class Start implements ManagerEventListener {
         // Входящие "ОТВЕТ"
         if(event.getClass().equals(AgentConnectEvent.class)){
             try {
-                dt.sendHttpPost(ccHost, "in-call-answer", objectToJson(event));
+                String json = objectToJson(event);
+                Logger.getRootLogger().info("IN ANSWER with data: [" + json + "]");
+                dt.sendHttpPost(ccHost, "in-call-answer", json);
             } catch (JsonProcessingException e) {
                 e.printStackTrace();
             }
@@ -123,7 +138,9 @@ public class Start implements ManagerEventListener {
         // Входящие "ПОЛОЖИЛИ ТРУБКУ"
         if(event.getClass().equals(AgentCompleteEvent.class)){
             try {
-                dt.sendHttpPost(ccHost, "in-call-hangup", objectToJson(event));
+                String json = objectToJson(event);
+                Logger.getRootLogger().info("IN HANGUP with data: [" + json + "]");
+                dt.sendHttpPost(ccHost, "in-call-hangup", json);
             } catch (JsonProcessingException e) {
                 e.printStackTrace();
             }
@@ -136,7 +153,9 @@ public class Start implements ManagerEventListener {
                 try {
                     ev.setCallerIDName(ev.getCallerIdName());
                     ev.setCallerIDNum(ev.getCallerIdNum());
-                    dt.sendHttpPost(ccHost, "out-call-ringing", objectToJson(ev));
+                    String json = objectToJson(ev);
+                    Logger.getRootLogger().info("OUT RINGING with data: [" + json + "]");
+                    dt.sendHttpPost(ccHost, "out-call-ringing", json);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -146,7 +165,9 @@ public class Start implements ManagerEventListener {
         // Исходящие "ОТВЕТ"
         if (event.getClass().equals(BridgeEnterEvent.class)) {
             try {
-                dt.sendHttpPost(ccHost, "out-call-answer", objectToJson(event));
+                String json = objectToJson(event);
+                Logger.getRootLogger().info("OUT ANSWER with data: [" + json + "]");
+                dt.sendHttpPost(ccHost, "out-call-answer", json);
             } catch (JsonProcessingException e) {
                 e.printStackTrace();
             }
@@ -155,35 +176,12 @@ public class Start implements ManagerEventListener {
         // Исходящие "ПОЛОЖИЛИ ТРУБКУ"
         if (event.getClass().equals(HangupEvent.class)) {
             try {
-                dt.sendHttpPost(ccHost, "out-call-hangup", objectToJson(event));
+                String json = objectToJson(event);
+                Logger.getRootLogger().info("OUT HANGUP with data: [" + json + "]");
+                dt.sendHttpPost(ccHost, "out-call-hangup", json);
             } catch (JsonProcessingException e) {
                 e.printStackTrace();
             }
         }
     }
-
-
-//    private void testCam() {
-//        while (true) {
-//            MediaPlayerFactory mFactory = new MediaPlayerFactory();
-//            MediaPlayer player= mFactory.newHeadlessMediaPlayer();
-//            long currentTime = System.currentTimeMillis();
-//            Timestamp tstart = new Timestamp(currentTime);
-//            Timestamp tstop = new Timestamp(currentTime+10000);
-//            String options = ":sout=#transcode{vcodec=webm,venc=x264{cfr=16},scale=1,acodec=mp4a,ab=160,channels=2,samplerate=44100}"
-//                    + ":file{dst=" + tstart.getTime() + "-" + tstop.getTime() + ".mp4}";
-//            player.playMedia("rtsp://admin:123@192.168.0.226:554/onvif1", options
-//            );
-//
-////        player.saveSnapshot(new File("home\\aleksey\\testst.mp4"));
-//
-//            try {
-//                Thread.sleep(10000);
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//            player.stop();
-//        }
-//    }
-
 }
