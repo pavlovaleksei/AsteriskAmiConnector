@@ -9,6 +9,7 @@ import okhttp3.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @Author Pavlov Aleksey
@@ -30,12 +31,19 @@ public class DataTransfer {
      */
     public Map<String, String> sendHttpPost(String ccAmiHost, String path, String body) {
         try {
+            OkHttpClient client = new OkHttpClient.Builder()
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .writeTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(30, TimeUnit.SECONDS)
+                    .build();
+
             RequestBody requestBody = RequestBody.create(JSON, body);
             Request request = new Request.Builder()
                     .url(ccAmiHost + "/" + path)
                     .post(requestBody)
                     .build();
-            try (Response response = new OkHttpClient().newCall(request).execute()) {
+
+            try (Response response = client.newCall(request).execute()) {
                 Map<String, String> answer = new HashMap<>();
                 answer.put("status", String.valueOf(response.code()));
                 answer.put("data", response.body().string());
